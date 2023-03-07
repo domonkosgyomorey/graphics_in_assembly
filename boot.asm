@@ -3,22 +3,27 @@
 %define HEIGHT 200
 %define COLOR 0x4
 
-BITS 16
-
 mov ah, 0x0  				; set video mode
 mov al, 0x13				; VGA 256color mode 320x200
 int 0x10  					; bios interrupt
 mov ax, VIDEO_SEGMENT		; load VGA video memory segment
 mov es, ax 					; mov VGA video memory segment into the extra segment register
 
-mov ax, 0  					; setup: rect y
-mov bx, 0  					; 		 rext x
+mov cx, 0
+
+mov ax, 5   				; setup: rect x
+mov bx, 5   				; 		 rext y
 mov cx, 10  				; 		 rect width
-mov dx, 150  				; 		 rect height
-mov si, 0x8  				; 		 rect color
+mov dx, 50  				; 		 rect height
+mov si, 0x8a  				; 		 rect color
 call draw_rect 				; call draw_rect procedure
 
-jmp $
+ml:
+	
+	jmp ml
+
+hlt
+
 
 ; ax for y
 ; bx for x
@@ -26,39 +31,28 @@ jmp $
 ; dx for height
 ; si for color
 draw_rect:
-	push ax					; save y for later
-	; calculate final index (y+height+1)*scr_Width+x+width
-	add ax, dx
-	mov dx, WIDTH
-	mul dx
-	add ax, bx
-	add ax, cx
-
-	mov di, ax				; mov last index into di, because mul -> dx:ax
-	pop ax					; load y
-	push cx					; save rect with for later
-
-	; calculate first pixel of the rect (y*scr_width)+x
-	mov cx, WIDTH
-	mul cx
-	add ax, bx
-
-	mov cx, ax				; mov first pixel index into cx
-	pop bx					; save rect width into bx
-	add bx, cx				; add first pixel index to the width fot calc end line index of the rect
-	mov dx, di
-	ol:						; outer loop
-	il:						; inner loop	
-	mov di, cx 				; store pixel index to di
-	mov WORD [es:di], si 	; write pixel in video memory with color (si)
-	inc cx					; increment the iterator
-	cmp ecx, ebx			; compare current idx with (rect width + x) 
-	jl il					; jump if iterator less than x+width on the current row
-	add bx, WIDTH			; add the end line of rect index to scr_width (go next end line index) 	
-	add ax, WIDTH			; skip the current row
-	mov cx, ax				; store first index of rect into cx
-	cmp ecx, edx			; compare current idx with last index
-	jl ol					; jump if cx less than the last index
+	pusha
+	push bx					; save x
+	mov bx, WIDTH			; move screen width into bx
+	push dx					; save dx because mul
+	mul bx					; calculate the beginning index of the y-th row
+	pop dx					; load back height into dx 
+	pop bx					; load back x into bx
+	add ax, bx				; offset the y-th row to the x coordinate
+	mov bx, WIDTH			; move back the screen width into bx
+	mov di, ax				; move the beggining index of the rect into di,
+							; which will be offset the es(VGA_GRAPHICAL_MEMORY)
+	mov ax, si				; move the color into ax, because stosb
+draw_rect_inner_loop:		; inner loop for iterate over the lines
+	pusha 					; push all general register
+	rep stosb				; write cx(rect_width) times al(ax-> color) into es:di(di->indexing from rect first index)
+	popa 					; load back all general register
+	add di, bx 				; increment di(indexer) by the screen width
+	; decrement dx(height), and until larger than 0 jump back to the inner loop
+	dec dx					
+	cmp dx, 0
+	jne draw_rect_inner_loop
+	popa
 	ret
 
 times 510-($-$$) db 0 		; zero the remaring memory
