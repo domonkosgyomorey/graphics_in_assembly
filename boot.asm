@@ -4,11 +4,10 @@
 %define KEYBOARD_INT 9  	; keyboard IRQ
 
 ; ball instance params
-%define BALL_COLOR 0x8a
 %define BALL_WIDTH 10
 %define BALL_HEIGHT 10
 
-mov ah, 0x0  				; set video mode
+mov ah, 0  					; set video mode
 mov al, 0x13				; VGA 256color mode 320x200
 int 0x10  					; bios interrupt
 mov ax, VIDEO_SEGMENT		; load VGA video memory segment
@@ -16,17 +15,27 @@ mov es, ax 					; mov VGA video memory segment into the extra segment register
 
 ml: 						; event and process loop
 	
+	;post drawing the rect (shadowing)
+	mov ax, di
+	mov cx, BALL_WIDTH
+	mov dx, BALL_HEIGHT
+	mov si, [screen_color]
+	call draw_rect
+
 	; drawing the rect
 	mov ax, [ball_idx]
 	mov cx, BALL_WIDTH
 	mov dx, BALL_HEIGHT
-	mov si, BALL_COLOR
+	mov si, [ball_color]
 	call draw_rect
 
 	; check if keyboard is available
 	mov ah, 0x1
 	int 0x16
 	jz ml
+
+	; set current ball idx to a register
+	mov di, [ball_idx]
 
 	; clear ah, and get the pressed key
 	xor ah, ah
@@ -41,7 +50,8 @@ ml: 						; event and process loop
 	je down_f
 	cmp al, 'd'
 	je right_f
-	
+	cmp al, 'q'
+	je change_color_f
 	; for calling procedure
 up_f:
 	call up
@@ -55,9 +65,15 @@ down_f:
 right_f:
 	call right
 	jmp end_ml
-
+change_color_f:
+	mov ax, [ball_color]
+	inc ax
+	mov [ball_color], ax
+	jmp end_ml
 	; end mark
 end_ml:
+
+
 	jmp ml
 
 hlt
@@ -93,6 +109,7 @@ up:
 	mov bx, WIDTH
 	sub ax, bx
 	mov [ball_idx], ax
+
 	popa
 	ret
 
@@ -121,6 +138,9 @@ right:
 	mov [ball_idx], ax
 	popa
 	ret
-times 509-($-$$) db 0 		; zero the remaring memory
+
+times 506-($-$$) db 0 		; zero the remaring memory
+screen_color db 0x0 		; background color
+ball_color db 0x8a  		; ball color
 ball_idx db 0 				; define 1 byte for rect index
 dw 0xaa55  					; write the magic constant to the last 2 byte
