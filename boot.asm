@@ -11,8 +11,7 @@ mov es, ax 					; mov VGA video memory segment into the extra segment register
 
 mov cx, 0
 
-mov ax, 5   				; setup: rect x
-mov bx, 5   				; 		 rext y
+mov ax, 3210   				; setup: rect first index
 mov cx, 10  				; 		 rect width
 mov dx, 50  				; 		 rect height
 mov si, 0x8a  				; 		 rect color
@@ -25,28 +24,20 @@ ml:
 hlt
 
 
-; ax for y
-; bx for x
+; ax for first index of the rect
 ; cx for width
 ; dx for height
 ; si for color
 draw_rect:
 	pusha
-	push bx					; save x
-	mov bx, WIDTH			; move screen width into bx
-	push dx					; save dx because mul
-	mul bx					; calculate the beginning index of the y-th row
-	pop dx					; load back height into dx 
-	pop bx					; load back x into bx
-	add ax, bx				; offset the y-th row to the x coordinate
-	mov bx, WIDTH			; move back the screen width into bx
+	mov bx, WIDTH			; move the screen width into bx
 	mov di, ax				; move the beggining index of the rect into di,
 							; which will be offset the es(VGA_GRAPHICAL_MEMORY)
 	mov ax, si				; move the color into ax, because stosb
 draw_rect_inner_loop:		; inner loop for iterate over the lines
-	pusha 					; push all general register
+	pusha 					; save di and cx, because rep, and stosb
 	rep stosb				; write cx(rect_width) times al(ax-> color) into es:di(di->indexing from rect first index)
-	popa 					; load back all general register
+	popa 					; load back di, and cx
 	add di, bx 				; increment di(indexer) by the screen width
 	; decrement dx(height), and until larger than 0 jump back to the inner loop
 	dec dx					
