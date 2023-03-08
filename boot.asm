@@ -1,8 +1,9 @@
-%define VIDEO_SEGMENT 0xa000
-%define WIDTH 320
-%define HEIGHT 200
-%define COLOR 0x4
-%define KEYBOARD_INT 9
+%define VIDEO_SEGMENT 0xa000; VGA Video segment
+%define WIDTH 320 			; screen width
+%define HEIGHT 200 			; screen height
+%define KEYBOARD_INT 9  	; keyboard IRQ
+
+; ball instance params
 %define BALL_COLOR 0x8a
 %define BALL_WIDTH 10
 %define BALL_HEIGHT 10
@@ -13,14 +14,25 @@ int 0x10  					; bios interrupt
 mov ax, VIDEO_SEGMENT		; load VGA video memory segment
 mov es, ax 					; mov VGA video memory segment into the extra segment register
 
-ml:
+ml: 						; event and process loop
+	
+	; drawing the rect
+	mov ax, [ball_idx]
+	mov cx, BALL_WIDTH
+	mov dx, BALL_HEIGHT
+	mov si, BALL_COLOR
+	call draw_rect
+
+	; check if keyboard is available
 	mov ah, 0x1
 	int 0x16
 	jz ml
 
+	; clear ah, and get the pressed key
 	xor ah, ah
 	int 0x16
 
+	; braching the wasd keys, for movement
 	cmp al, 'w'
 	je up_f
 	cmp al, 'a'
@@ -30,6 +42,7 @@ ml:
 	cmp al, 'd'
 	je right_f
 	
+	; for calling procedure
 up_f:
 	call up
 	jmp end_ml
@@ -43,12 +56,8 @@ right_f:
 	call right
 	jmp end_ml
 
+	; end mark
 end_ml:
-	mov ax, [ball_idx]
-	mov cx, BALL_WIDTH
-	mov dx, BALL_HEIGHT
-	mov si, BALL_COLOR
-	call draw_rect 
 	jmp ml
 
 hlt
@@ -75,6 +84,9 @@ draw_rect_inner_loop:		; inner loop for iterate over the lines
 	jne draw_rect_inner_loop
 	popa
 	ret
+
+
+; up, left, down, right event handling
 up:
 	pusha
 	mov ax, [ball_idx]
@@ -110,5 +122,5 @@ right:
 	popa
 	ret
 times 509-($-$$) db 0 		; zero the remaring memory
-ball_idx db 0
+ball_idx db 0 				; define 1 byte for rect index
 dw 0xaa55  					; write the magic constant to the last 2 byte
