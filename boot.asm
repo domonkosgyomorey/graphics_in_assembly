@@ -2,6 +2,10 @@
 %define WIDTH 320
 %define HEIGHT 200
 %define COLOR 0x4
+%define KEYBOARD_INT 9
+%define BALL_COLOR 0x8a
+%define BALL_WIDTH 10
+%define BALL_HEIGHT 10
 
 mov ah, 0x0  				; set video mode
 mov al, 0x13				; VGA 256color mode 320x200
@@ -9,16 +13,42 @@ int 0x10  					; bios interrupt
 mov ax, VIDEO_SEGMENT		; load VGA video memory segment
 mov es, ax 					; mov VGA video memory segment into the extra segment register
 
-mov cx, 0
-
-mov ax, 3210   				; setup: rect first index
-mov cx, 10  				; 		 rect width
-mov dx, 50  				; 		 rect height
-mov si, 0x8a  				; 		 rect color
-call draw_rect 				; call draw_rect procedure
-
 ml:
+	mov ah, 0x1
+	int 0x16
+	jz ml
+
+	xor ah, ah
+	int 0x16
+
+	cmp al, 'w'
+	je up_f
+	cmp al, 'a'
+	je left_f
+	cmp al, 's'
+	je down_f
+	cmp al, 'd'
+	je right_f
 	
+up_f:
+	call up
+	jmp end_ml
+left_f:
+	call left
+	jmp end_ml
+down_f:
+	call down
+	jmp end_ml
+right_f:
+	call right
+	jmp end_ml
+
+end_ml:
+	mov ax, [ball_idx]
+	mov cx, BALL_WIDTH
+	mov dx, BALL_HEIGHT
+	mov si, BALL_COLOR
+	call draw_rect 
 	jmp ml
 
 hlt
@@ -45,6 +75,40 @@ draw_rect_inner_loop:		; inner loop for iterate over the lines
 	jne draw_rect_inner_loop
 	popa
 	ret
+up:
+	pusha
+	mov ax, [ball_idx]
+	mov bx, WIDTH
+	sub ax, bx
+	mov [ball_idx], ax
+	popa
+	ret
 
-times 510-($-$$) db 0 		; zero the remaring memory
+left:
+	pusha
+	mov ax, [ball_idx]
+	mov bx, WIDTH
+	dec ax
+	mov [ball_idx], ax
+	popa
+	ret
+
+down:
+	pusha
+	mov ax, [ball_idx]
+	mov bx, WIDTH
+	add ax, bx
+	mov [ball_idx], ax
+	popa
+	ret
+
+right:
+	pusha
+	mov ax, [ball_idx]
+	inc ax
+	mov [ball_idx], ax
+	popa
+	ret
+times 509-($-$$) db 0 		; zero the remaring memory
+ball_idx db 0
 dw 0xaa55  					; write the magic constant to the last 2 byte
